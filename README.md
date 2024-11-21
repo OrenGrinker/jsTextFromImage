@@ -1,6 +1,6 @@
 # JSTextFromImage
 
-Get descriptions of images using OpenAI's GPT-4 Vision models, Azure OpenAI, and Anthropic Claude in an easy way.
+Get descriptions of images using OpenAI's GPT-4o Vision models and Anthropic Claude in an easy way.
 
 ## Installation
 
@@ -12,7 +12,7 @@ npm install jstextfromimage
 
 ## Usage
 
-The jstextfromimage package provides easy-to-use methods to obtain image descriptions using OpenAI, Azure OpenAI, and Anthropic Claude. Below are examples of how to use each integration.
+The jstextfromimage package provides easy-to-use methods to obtain image descriptions using OpenAI and Anthropic Claude. Below are examples of how to use each integration.
 
 ### Prerequisites
 
@@ -24,9 +24,6 @@ Create a `.env` file in your project root and add the following:
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
-AZURE_OPENAI_API_KEY=your-azure-openai-api-key
-AZURE_OPENAI_ENDPOINT=https://your-azure-endpoint.openai.azure.com/
-AZURE_OPENAI_DEPLOYMENT=your-deployment-name
 ANTHROPIC_API_KEY=your-anthropic-api-key
 ```
 
@@ -36,10 +33,10 @@ Note: Never commit your `.env` file or API keys to version control.
 
 ```javascript
 // CommonJS
-const { openai, azureOpenai, claude } = require('jstextfromimage');
+const { openai, claude } = require('jstextfromimage');
 
 // ES Module
-import { openai, azureOpenai, claude } from 'jstextfromimage';
+import { openai, claude } from 'jstextfromimage';
 ```
 
 ### Using OpenAI
@@ -94,37 +91,6 @@ await claude.getDescription(imageUrl, {
 });
 ```
 
-### Using Azure OpenAI
-
-```javascript
-const { azureOpenai } = require('jstextfromimage');
-require('dotenv').config();
-
-// Option 1: Initialize Azure OpenAI client with parameters
-azureOpenai.init({
-  apiKey: 'your-azure-openai-api-key',
-  apiBase: 'https://your-azure-endpoint.openai.azure.com/',
-  deploymentName: 'your-deployment-name',
-  apiVersion: '2024-02-15-preview'
-});
-
-// Option 2: Use environment variables
-// (Ensure you've set AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT in your .env file)
-// azureOpenai.init();
-
-const imageUrl = 'https://example.com/image.jpg';
-
-// Basic usage
-await azureOpenai.getDescription(imageUrl);
-
-// Advanced usage with options
-await azureOpenai.getDescription(imageUrl, {
-  prompt: "What do you see in this image?",
-  maxTokens: 500,
-  systemPrompt: "You are a helpful assistant specialized in image analysis."
-});
-```
-
 ## API Reference
 
 ### OpenAI Client
@@ -151,26 +117,6 @@ interface ClaudeOptions {
 
 init(apiKey?: string): void
 getDescription(imageUrl: string, options?: ClaudeOptions): Promise<string>
-```
-
-### Azure OpenAI Client
-
-```typescript
-interface AzureOpenAIConfig {
-  apiKey?: string;         // Azure OpenAI API key
-  apiBase?: string;        // Azure OpenAI endpoint
-  deploymentName?: string; // Model deployment name
-  apiVersion?: string;     // API version (default: '2024-02-15-preview')
-}
-
-interface AzureOpenAIOptions {
-  prompt?: string;         // Custom prompt for the model
-  maxTokens?: number;      // Maximum length of the response
-  systemPrompt?: string;   // System message for the assistant
-}
-
-init(config?: AzureOpenAIConfig): void
-getDescription(imageUrl: string, options?: AzureOpenAIOptions): Promise<string>
 ```
 
 ## Error Handling

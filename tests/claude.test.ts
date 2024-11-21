@@ -1,24 +1,24 @@
-// tests/claude.test.js
-const { claude } = require('../src/claude');
-const { getImageData } = require('../src/utils');
+// tests/claude.test.ts
+import { Anthropic } from '@anthropic-ai/sdk';
+import { claude } from '../src/claude';
+import { getImageData } from '../src/utils';
+import { ClaudeOptions } from '../src/types';
 
 // Mock Anthropic client
-jest.mock('@anthropic-ai/sdk', () => {
-  return {
-    Anthropic: jest.fn().mockImplementation(() => ({
-      messages: {
-        create: jest.fn()
-      }
-    }))
-  };
-});
+jest.mock('@anthropic-ai/sdk', () => ({
+  Anthropic: jest.fn().mockImplementation(() => ({
+    messages: {
+      create: jest.fn()
+    }
+  }))
+}));
 
 // Mock utils
 jest.mock('../src/utils', () => ({
   getImageData: jest.fn()
 }));
 
-describe('Claude Module', () => {
+describe('Claude Service', () => {
   const mockApiKey = 'test-api-key';
   const mockImageUrl = 'https://example.com/image.jpg';
   const mockEncodedImage = 'base64-encoded-image';
@@ -27,8 +27,7 @@ describe('Claude Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     process.env.ANTHROPIC_API_KEY = mockApiKey;
-
-    getImageData.mockResolvedValue({
+    (getImageData as jest.Mock).mockResolvedValue({
       encodedImage: mockEncodedImage,
       contentType: 'image/jpeg'
     });
@@ -50,27 +49,31 @@ describe('Claude Module', () => {
   });
 
   test('getDescription() should return image description', async () => {
-    const { Anthropic } = require('@anthropic-ai/sdk');
-    const mockAnthropicClient = new Anthropic();
-    mockAnthropicClient.messages.create.mockResolvedValue({
+    const mockCreate = jest.fn().mockResolvedValue({
       content: [{ text: mockDescription }]
     });
 
+    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementation(() => ({
+      messages: { create: mockCreate }
+    } as any));
+
     claude.init(mockApiKey);
     const result = await claude.getDescription(mockImageUrl);
-
+    
     expect(result).toBe(mockDescription);
     expect(getImageData).toHaveBeenCalledWith(mockImageUrl);
   });
 
   test('getDescription() should handle custom options', async () => {
-    const { Anthropic } = require('@anthropic-ai/sdk');
-    const mockAnthropicClient = new Anthropic();
-    mockAnthropicClient.messages.create.mockResolvedValue({
+    const mockCreate = jest.fn().mockResolvedValue({
       content: [{ text: mockDescription }]
     });
 
-    const options = {
+    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementation(() => ({
+      messages: { create: mockCreate }
+    } as any));
+
+    const options: ClaudeOptions = {
       prompt: 'Custom prompt',
       maxTokens: 500,
       model: 'custom-model'
@@ -78,9 +81,9 @@ describe('Claude Module', () => {
 
     claude.init(mockApiKey);
     const result = await claude.getDescription(mockImageUrl, options);
-
+    
     expect(result).toBe(mockDescription);
-    expect(mockAnthropicClient.messages.create).toHaveBeenCalledWith(
+    expect(mockCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         max_tokens: options.maxTokens,
         model: options.model
@@ -89,9 +92,11 @@ describe('Claude Module', () => {
   });
 
   test('getDescription() should throw error on API failure', async () => {
-    const { Anthropic } = require('@anthropic-ai/sdk');
-    const mockAnthropicClient = new Anthropic();
-    mockAnthropicClient.messages.create.mockRejectedValue(new Error('API Error'));
+    const mockCreate = jest.fn().mockRejectedValue(new Error('API Error'));
+
+    (Anthropic as jest.MockedClass<typeof Anthropic>).mockImplementation(() => ({
+      messages: { create: mockCreate }
+    } as any));
 
     claude.init(mockApiKey);
     await expect(claude.getDescription(mockImageUrl)).rejects.toThrow('Claude API request failed');

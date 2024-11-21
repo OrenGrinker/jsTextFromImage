@@ -1,7 +1,9 @@
-// src/utils.js
-const axios = require('axios');
+// src/utils.ts
+import axios from 'axios';
+import mime from 'mime-types';
+import { ImageData } from './types';
 
-const getImageData = async (imageUrl) => {
+export const getImageData = async (imageUrl: string): Promise<ImageData> => {
   try {
     const response = await axios.get(imageUrl, { responseType: 'arraybuffer' });
     
@@ -12,16 +14,20 @@ const getImageData = async (imageUrl) => {
     // Get content type
     let contentType = response.headers['content-type'];
     if (!contentType) {
-      const mime = require('mime-types');
       contentType = mime.lookup(imageUrl) || 'image/jpeg';
+    }
+
+    // Normalize content type
+    contentType = contentType.toLowerCase();
+    if (contentType === 'image/jpg') {
+      contentType = 'image/jpeg';
     }
 
     // Encode image to base64
     const encodedImage = Buffer.from(response.data).toString('base64');
+
     return { encodedImage, contentType };
   } catch (error) {
-    throw new Error(`Error fetching image data: ${error.message}`);
+    throw new Error(`Error fetching image data: ${(error as Error).message}`);
   }
 };
-
-module.exports = { getImageData };

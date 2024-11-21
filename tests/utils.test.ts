@@ -1,6 +1,6 @@
-// tests/utils.test.js
-const axios = require('axios');
-const { getImageData } = require('../src/utils');
+// tests/utils.test.ts
+import axios from 'axios';
+import { getImageData } from '../src/utils';
 
 // Mock axios
 jest.mock('axios');
@@ -14,7 +14,7 @@ describe('Utils Module', () => {
   });
 
   test('getImageData should return encoded image and content type', async () => {
-    axios.get.mockResolvedValue({
+    (axios.get as jest.Mock).mockResolvedValue({
       status: 200,
       data: mockImageBuffer,
       headers: {
@@ -23,33 +23,30 @@ describe('Utils Module', () => {
     });
 
     const result = await getImageData(mockImageUrl);
-
     expect(result).toHaveProperty('encodedImage');
     expect(result).toHaveProperty('contentType', 'image/jpeg');
     expect(axios.get).toHaveBeenCalledWith(mockImageUrl, { responseType: 'arraybuffer' });
   });
 
   test('getImageData should handle missing content type', async () => {
-    axios.get.mockResolvedValue({
+    (axios.get as jest.Mock).mockResolvedValue({
       status: 200,
       data: mockImageBuffer,
       headers: {}
     });
 
     const result = await getImageData(mockImageUrl);
-
     expect(result).toHaveProperty('encodedImage');
     expect(result).toHaveProperty('contentType', 'image/jpeg'); // Default content type
   });
 
   test('getImageData should throw error on failed request', async () => {
-    axios.get.mockRejectedValue(new Error('Network Error'));
-
+    (axios.get as jest.Mock).mockRejectedValue(new Error('Network Error'));
     await expect(getImageData(mockImageUrl)).rejects.toThrow('Error fetching image data');
   });
 
   test('getImageData should throw error on non-200 status', async () => {
-    axios.get.mockResolvedValue({
+    (axios.get as jest.Mock).mockResolvedValue({
       status: 404,
       data: 'Not Found'
     });
