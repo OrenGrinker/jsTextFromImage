@@ -1,7 +1,7 @@
 {
   "name": "jstextfromimage",
-  "version": "0.3.2",
-  "description": "Get descriptions of images from OpenAI and Anthropic Claude models in an easy way.",
+  "version": "0.3.3",
+  "description": "Get descriptions of images from OpenAI, Azure OpenAI and Anthropic Claude models in an easy way.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": {
@@ -31,6 +31,8 @@
     "openai",
     "gpt-4",
     "claude",
+    "azure",
+    "azure-openai",
     "computer-vision",
     "image-to-text",
     "ai",
@@ -44,6 +46,7 @@
   "homepage": "https://github.com/OrenGrinker/jstextfromimage#readme",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.18.0",
+    "@azure/identity": "^4.5.0",
     "@azure/openai": "^2.0.0",
     "axios": "^1.3.0",
     "dotenv": "^16.0.0",

@@ -1,6 +1,6 @@
 # JSTextFromImage
 
-Get descriptions of images from OpenAI and Anthropic Claude models in an easy way.
+Get descriptions of images from OpenAI, Azure OpenAI and Anthropic Claude models in an easy way.
 
 ## Installation
 
@@ -10,7 +10,7 @@ npm install jstextfromimage
 
 ## Features
 
-- Image analysis using OpenAI's GPT-4 Vision
+- Image analysis using OpenAI's GPT-4 Vision from OpenAI or Azure OpenAI
 - Image analysis using Anthropic's Claude 3
 - TypeScript support
 - Easy to use API
@@ -112,6 +112,9 @@ Create a `.env` file in your project root:
 ```env
 OPENAI_API_KEY=your-openai-api-key
 ANTHROPIC_API_KEY=your-claude-api-key
+AZURE_OPENAI_API_KEY=your-azure-api-key
+AZURE_OPENAI_ENDPOINT=your-azure-endpoint
+AZURE_OPENAI_DEPLOYMENT=your-deployment-name
 ```
 
 Then you can initialize without passing API keys:
@@ -155,6 +158,39 @@ interface ClaudeOptions {
   prompt?: string;      // Custom prompt for the model
   maxTokens?: number;   // Maximum tokens in response
   model?: string;       // Model to use
+}
+```
+
+### Azure OpenAI
+
+```typescript
+import { azureOpenai } from 'jstextfromimage';
+
+// Initialize with configuration
+azureOpenai.init({
+  apiKey: 'your-azure-api-key',
+  endpoint: 'your-azure-endpoint',
+  deploymentName: 'your-deployment-name',
+  apiVersion: '2024-07-01-preview'  // Optional
+});
+
+// Or use environment variables
+azureOpenai.init();  // Will use AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
+
+async function analyzeImageWithAzure() {
+  try {
+    const description = await azureOpenai.getDescription(
+      'https://example.com/image.jpg',
+      {
+        prompt: "What's in this image?",
+        maxTokens: 300,
+        systemPrompt: "You are a helpful assistant."
+      }
+    );
+    console.log('Azure OpenAI Description:', description);
+  } catch (error) {
+    console.error('Azure OpenAI Error:', error);
+  }
 }
 ```
 
