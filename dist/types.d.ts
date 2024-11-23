@@ -12,3 +12,6 @@ export interface OpenAIOptions extends BaseOptions {
 export interface ClaudeOptions extends BaseOptions {
     model?: string;
 }
+export interface AzureOpenAIOptions extends BaseOptions {
+    systemPrompt?: string;
+}

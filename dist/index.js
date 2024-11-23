@@ -23,9 +23,11 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.claude = exports.openai = void 0;
+exports.azureOpenai = exports.claude = exports.openai = void 0;
 // src/index.ts
 const openai = __importStar(require("./openai"));
 exports.openai = openai;
 const claude = __importStar(require("./claude"));
 exports.claude = claude;
+const azureOpenai = __importStar(require("./azure_openai"));
+exports.azureOpenai = azureOpenai;

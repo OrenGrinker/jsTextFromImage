@@ -1,113 +1,114 @@
 # JSTextFromImage
 
-Get descriptions of images from OpenAI, Azure OpenAI and Anthropic Claude models in an easy way.
+![npm Version](https://img.shields.io/npm/v/jstextfromimage)
+![TypeScript](https://img.shields.io/npm/types/jstextfromimage)
+![License](https://img.shields.io/npm/l/jstextfromimage)
+![Downloads](https://img.shields.io/npm/dm/jstextfromimage)
+![Node Version](https://img.shields.io/node/v/jstextfromimage)
 
-## Installation
+A powerful TypeScript/JavaScript library for obtaining detailed descriptions of images using various AI models including OpenAI's GPT-4 Vision, Azure OpenAI, and Anthropic Claude 3.
+
+## 🌟 Key Features
+
+- 🤖 **Multiple AI Providers**: Support for OpenAI, Azure OpenAI, and Anthropic Claude
+- 📝 **TypeScript First**: Built with TypeScript for excellent type safety
+- 🔄 **Async/Await**: Modern Promise-based API
+- 🔑 **Flexible Auth**: Multiple authentication methods including environment variables
+- 🛡️ **Error Handling**: Comprehensive error types and handling
+- 🎯 **Customizable**: Configurable options for each model
+
+## 📦 Installation
 
 ```bash
 npm install jstextfromimage
 ```
 
-## Features
+## 🚀 Quick Start
 
-- Image analysis using OpenAI's GPT-4 Vision from OpenAI or Azure OpenAI
-- Image analysis using Anthropic's Claude 3
-- TypeScript support
-- Easy to use API
-- Configurable options for each model
-- Built-in error handling
-- Environment variables support
-
-## Usage
-
-### TypeScript/ES Modules
+### TypeScript Usage
 
 ```typescript
-import { openai, claude } from 'jstextfromimage';
-import { OpenAIOptions, ClaudeOptions } from 'jstextfromimage/types';
+import { openai, claude, azureOpenai } from 'jstextfromimage';
+import { 
+  OpenAIOptions, 
+  ClaudeOptions, 
+  AzureOpenAIOptions 
+} from 'jstextfromimage/types';
 
-// Initialize with API keys
+// Initialize clients
 openai.init('your-openai-api-key');
 claude.init('your-claude-api-key');
-
-// Example usage with OpenAI
-async function analyzeImageWithOpenAI() {
-  try {
-    const options: OpenAIOptions = {
-      prompt: "What's in this image? Please describe in detail.",
-      maxTokens: 300,
-      model: 'gpt-4-vision-preview'  // Optional, defaults to gpt-4-vision-preview
-    };
-
-    const description = await openai.getDescription(
-      'https://example.com/image.jpg',
-      options
-    );
-    console.log('OpenAI Description:', description);
-  } catch (error) {
-    console.error('OpenAI Error:', error);
-  }
-}
-
-// Example usage with Claude
-async function analyzeImageWithClaude() {
-  try {
-    const options: ClaudeOptions = {
-      prompt: "What's in this image? Please describe in detail.",
-      maxTokens: 300,
-      model: 'claude-3-sonnet-20240229'  // Optional, defaults to claude-3-sonnet-20240229
-    };
-
-    const description = await claude.getDescription(
-      'https://example.com/image.jpg',
-      options
-    );
-    console.log('Claude Description:', description);
-  } catch (error) {
-    console.error('Claude Error:', error);
-  }
-}
-```
-
-### JavaScript/CommonJS
-
-```javascript
-const { openai, claude } = require('jstextfromimage');
-
-// Initialize with API keys
-openai.init('your-openai-api-key');
-claude.init('your-claude-api-key');
+azureOpenai.init({
+  apiKey: 'your-azure-api-key',
+  endpoint: 'your-azure-endpoint',
+  deploymentName: 'your-deployment-name'
+});
 
 async function analyzeImage() {
-  try {
-    // Using OpenAI
-    const openAiDescription = await openai.getDescription(
-      'https://example.com/image.jpg',
-      {
-        prompt: "What's in this image?",
-        maxTokens: 300
-      }
-    );
-    console.log('OpenAI Description:', openAiDescription);
+  const imageUrl = 'https://example.com/image.jpg';
+  
+  // OpenAI Analysis
+  const openAIResult = await openai.getDescription(imageUrl, {
+    model: 'gpt-4-vision-preview',
+    maxTokens: 300,
+    temperature: 0.7
+  });
 
-    // Using Claude
-    const claudeDescription = await claude.getDescription(
-      'https://example.com/image.jpg',
-      {
-        prompt: "What's in this image?",
-        maxTokens: 300
-      }
-    );
-    console.log('Claude Description:', claudeDescription);
-  } catch (error) {
-    console.error('Error:', error);
-  }
+  // Claude Analysis
+  const claudeResult = await claude.getDescription(imageUrl, {
+    model: 'claude-3-sonnet-20240229',
+    maxTokens: 300,
+    temperature: 0.7
+  });
+
+  console.log('OpenAI:', openAIResult);
+  console.log('Claude:', claudeResult);
 }
 ```
 
-### Using Environment Variables
+## 💡 Advanced Usage
 
-Create a `.env` file in your project root:
+### 🔧 Custom Configuration
+
+```typescript
+interface AdvancedOptions {
+  // OpenAI specific options
+  openai: {
+    model: string;
+    maxTokens: number;
+    temperature: number;
+    systemPrompt?: string;
+    responseFormat?: 'text' | 'json';
+  };
+  
+  // Claude specific options
+  claude: {
+    model: string;
+    maxTokens: number;
+    temperature: number;
+    topP?: number;
+    topK?: number;
+  };
+  
+  // Azure specific options
+  azure: {
+    deploymentName: string;
+    apiVersion: string;
+    temperature: number;
+    responseFormat?: 'text' | 'json';
+  };
+}
+
+const result = await openai.getDescription(imageUrl, {
+  model: 'gpt-4-vision-preview',
+  maxTokens: 500,
+  temperature: 0.7,
+  systemPrompt: 'You are a detail-oriented image analyst.',
+  responseFormat: 'json'
+});
+```
+
+### 🔐 Environment Variables
 
 ```env
 OPENAI_API_KEY=your-openai-api-key
@@ -117,116 +118,78 @@ AZURE_OPENAI_ENDPOINT=your-azure-endpoint
 AZURE_OPENAI_DEPLOYMENT=your-deployment-name
 ```
 
-Then you can initialize without passing API keys:
+### 🔍 Error Handling
 
 ```typescript
-import { openai, claude } from 'jstextfromimage';
+import { 
+  APIError, 
+  ImageFetchError, 
+  InvalidConfigError 
+} from 'jstextfromimage/errors';
 
-// Will use environment variables
-openai.init();
-claude.init();
+try {
+  const description = await openai.getDescription(imageUrl, options);
+  console.log(description);
+} catch (error) {
+  if (error instanceof APIError) {
+    console.error('API request failed:', error.message);
+  } else if (error instanceof ImageFetchError) {
+    console.error('Failed to fetch image:', error.message);
+  } else if (error instanceof InvalidConfigError) {
+    console.error('Invalid configuration:', error.message);
+  } else {
+    console.error('Unexpected error:', error);
+  }
+}
 ```
 
-## API Reference
+## 📚 API Reference
 
 ### OpenAI Service
 
-#### `openai.init(apiKey?: string): void`
-Initializes the OpenAI client. Uses `OPENAI_API_KEY` environment variable if no key is provided.
-
-#### `openai.getDescription(imageUrl: string, options?: OpenAIOptions): Promise<string>`
-Gets a description of the image using OpenAI's GPT-4 Vision.
-
 ```typescript
 interface OpenAIOptions {
-  prompt?: string;      // Custom prompt for the model
-  maxTokens?: number;   // Maximum tokens in response
-  model?: string;       // Model to use
+  model?: string;         // Default: 'gpt-4-vision-preview'
+  maxTokens?: number;     // Default: 300
+  temperature?: number;   // Default: 0.7
+  systemPrompt?: string;
+  responseFormat?: 'text' | 'json';
 }
+
+openai.init(apiKey?: string): void
+openai.getDescription(imageUrl: string, options?: OpenAIOptions): Promise<string | object>
 ```
 
 ### Claude Service
 
-#### `claude.init(apiKey?: string): void`
-Initializes the Claude client. Uses `ANTHROPIC_API_KEY` environment variable if no key is provided.
-
-#### `claude.getDescription(imageUrl: string, options?: ClaudeOptions): Promise<string>`
-Gets a description of the image using Claude 3.
-
 ```typescript
 interface ClaudeOptions {
-  prompt?: string;      // Custom prompt for the model
-  maxTokens?: number;   // Maximum tokens in response
-  model?: string;       // Model to use
+  model?: string;         // Default: 'claude-3-sonnet-20240229'
+  maxTokens?: number;     // Default: 300
+  temperature?: number;   // Default: 0.7
+  topP?: number;
+  topK?: number;
 }
+
+claude.init(apiKey?: string): void
+claude.getDescription(imageUrl: string, options?: ClaudeOptions): Promise<string>
 ```
 
-### Azure OpenAI
+### Azure OpenAI Service
 
 ```typescript
-import { azureOpenai } from 'jstextfromimage';
-
-// Initialize with configuration
-azureOpenai.init({
-  apiKey: 'your-azure-api-key',
-  endpoint: 'your-azure-endpoint',
-  deploymentName: 'your-deployment-name',
-  apiVersion: '2024-07-01-preview'  // Optional
-});
-
-// Or use environment variables
-azureOpenai.init();  // Will use AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT
-
-async function analyzeImageWithAzure() {
-  try {
-    const description = await azureOpenai.getDescription(
-      'https://example.com/image.jpg',
-      {
-        prompt: "What's in this image?",
-        maxTokens: 300,
-        systemPrompt: "You are a helpful assistant."
-      }
-    );
-    console.log('Azure OpenAI Description:', description);
-  } catch (error) {
-    console.error('Azure OpenAI Error:', error);
-  }
+interface AzureOpenAIConfig {
+  apiKey: string;
+  endpoint: string;
+  deploymentName: string;
+  apiVersion?: string;    // Default: '2024-02-01-preview'
 }
+
+azureOpenai.init(config: AzureOpenAIConfig): void
+azureOpenai.getDescription(imageUrl: string, options?: OpenAIOptions): Promise<string>
 ```
 
-## Error Handling
-
-The library throws errors in these cases:
-- Invalid API keys
-- Failed image fetching
-- API request failures
-- Invalid responses
-
-Example error handling:
-
-```typescript
-import { openai } from 'jstextfromimage';
-
-try {
-  const description = await openai.getDescription('https://example.com/image.jpg');
-  console.log(description);
-} catch (error) {
-  if (error instanceof Error) {
-    switch (error.message) {
-      case 'OpenAI API request failed':
-        console.error('API request failed:', error);
-        break;
-      case 'Error fetching image data':
-        console.error('Image fetch failed:', error);
-        break;
-      default:
-        console.error('Unexpected error:', error);
-    }
-  }
-}
-```
-
-## Development
+## 🛠️ Development
 
 ```bash
 # Install dependencies
@@ -235,9 +198,6 @@ npm install
 # Run tests
 npm test
 
-# Run tests with coverage
-npm run test:coverage
-
 # Build the project
 npm run build
 
@@ -245,11 +205,7 @@ npm run build
 npm run lint
 ```
 
-## License
-
-MIT License - see the [LICENSE](LICENSE) file for details.
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
 2. Create your feature branch (`git checkout -b feature/amazing-feature`)
@@ -257,6 +213,10 @@ MIT License - see the [LICENSE](LICENSE) file for details.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## Support
+## 📝 License
 
-For support, please [open an issue](https://github.com/OrenGrinker/jstextfromimage/issues/new) on GitHub.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 💬 Support
+
+For support, please [open an issue](https://github.com/yourusername/jstextfromimage/issues/new) on GitHub.
