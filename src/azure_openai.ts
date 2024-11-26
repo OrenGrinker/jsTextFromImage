@@ -1,14 +1,12 @@
-// src/azure_openai.ts
 import { AzureOpenAI } from "openai";
-import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources";
-import { getImageData } from './utils';
-import { AzureOpenAIOptions } from './types';
+import { getImageData, processBatchImages } from './utils';
+import { AzureOpenAIOptions, AzureOpenAIBatchOptions, BatchImageResult } from './types';
 import dotenv from 'dotenv';
-
 dotenv.config();
 
 class AzureOpenAIService {
   private client: AzureOpenAI | null = null;
+  private deploymentName: string = '';
 
   init({
     apiKey = process.env.AZURE_OPENAI_API_KEY,
@@ -26,7 +24,7 @@ class AzureOpenAIService {
         'Azure OpenAI configuration must be provided via parameters or environment variables: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT'
       );
     }
-
+    this.deploymentName = deploymentName;
     this.client = new AzureOpenAI({
       apiKey,
       endpoint,
@@ -36,7 +34,7 @@ class AzureOpenAIService {
   }
 
   async getDescription(
-    imageUrl: string,
+    imagePath: string,
     {
       prompt = "What's in this image?",
       maxTokens = 300,
@@ -52,7 +50,10 @@ class AzureOpenAIService {
     }
 
     try {
-      const messages: ChatCompletionCreateParamsNonStreaming = {
+      const { encodedImage } = await getImageData(imagePath);
+
+      const completion = await this.client.chat.completions.create({
+        model: this.deploymentName,
         messages: [
           {
             role: "system",
@@ -68,17 +69,14 @@ class AzureOpenAIService {
               {
                 type: "image_url",
                 image_url: {
-                  url: imageUrl
+                  url: `data:image/png;base64,${encodedImage}`
                 }
               }
             ]
           }
         ],
-        model: "",
         max_tokens: maxTokens
-      };
-
-      const completion = await this.client.chat.completions.create(messages);
+      });
 
       if (!completion.choices[0]?.message?.content) {
         throw new Error('No response content received from Azure OpenAI');
@@ -88,6 +86,26 @@ class AzureOpenAIService {
     } catch (error) {
       throw new Error(`Azure OpenAI API request failed: ${(error as Error).message}`);
     }
+  }
+
+  async getDescriptionBatch(
+    imagePaths: string[],
+    {
+      prompt = "What's in this image?",
+      maxTokens = 300,
+      systemPrompt = "You are a helpful assistant.",
+      concurrentLimit = 3
+    }: AzureOpenAIBatchOptions = {}
+  ): Promise<BatchImageResult[]> {
+    if (!this.client) {
+      this.init();
+    }
+
+    return processBatchImages(
+      imagePaths,
+      (imagePath: string) => this.getDescription(imagePath, { prompt, maxTokens, systemPrompt }),
+      concurrentLimit
+    );
   }
 }
 

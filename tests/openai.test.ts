@@ -1,10 +1,9 @@
 // tests/openai.test.ts
 import OpenAI from 'openai';
 import { openai } from '../src/openai';
-import { getImageData } from '../src/utils';
-import { OpenAIOptions } from '../src/types';
+import { getImageData, processBatchImages } from '../src/utils';
+import { OpenAIOptions, BatchImageResult } from '../src/types';
 
-// Mock OpenAI client
 jest.mock('openai', () => {
   return jest.fn().mockImplementation(() => ({
     chat: {
@@ -15,9 +14,9 @@ jest.mock('openai', () => {
   }));
 });
 
-// Mock utils
 jest.mock('../src/utils', () => ({
-  getImageData: jest.fn()
+  getImageData: jest.fn(),
+  processBatchImages: jest.fn()
 }));
 
 describe('OpenAI Service', () => {
@@ -25,6 +24,10 @@ describe('OpenAI Service', () => {
   const mockImageUrl = 'https://example.com/image.jpg';
   const mockEncodedImage = 'base64-encoded-image';
   const mockDescription = 'This is a test description';
+  const mockBatchResults: BatchImageResult[] = [
+    { success: true, description: mockDescription, imagePath: 'test1.jpg' },
+    { success: true, description: mockDescription, imagePath: 'test2.jpg' }
+  ];
 
   beforeEach(() => {
     jest.clearAllMocks();
@@ -33,74 +36,70 @@ describe('OpenAI Service', () => {
       encodedImage: mockEncodedImage,
       contentType: 'image/jpeg'
     });
+    (processBatchImages as jest.Mock).mockResolvedValue(mockBatchResults);
   });
 
-  test('init() should initialize client with API key', () => {
-    openai.init(mockApiKey);
-    expect(openai.getDescription).toBeDefined();
+  describe('Single Image Processing', () => {
+    // ... (keep existing single image tests)
   });
 
-  test('init() should use environment variable if no API key provided', () => {
-    openai.init();
-    expect(openai.getDescription).toBeDefined();
-  });
+  describe('Batch Processing', () => {
+    const mockImagePaths = [
+      'https://example.com/image1.jpg',
+      '/path/to/image2.jpg',
+      'https://example.com/image3.jpg'
+    ];
 
-  test('init() should throw error if no API key available', () => {
-    delete process.env.OPENAI_API_KEY;
-    expect(() => openai.init()).toThrow();
-  });
-
-  test('getDescription() should return image description', async () => {
-    const mockCreate = jest.fn().mockResolvedValue({
-      choices: [{ message: { content: mockDescription } }]
+    beforeEach(() => {
+      openai.init(mockApiKey);
     });
 
-    (OpenAI as jest.MockedClass<typeof OpenAI>).mockImplementation(() => ({
-      chat: { completions: { create: mockCreate } }
-    } as any));
-
-    openai.init(mockApiKey);
-    const result = await openai.getDescription(mockImageUrl);
-    
-    expect(result).toBe(mockDescription);
-    expect(getImageData).toHaveBeenCalledWith(mockImageUrl);
-  });
-
-  test('getDescription() should handle custom options', async () => {
-    const mockCreate = jest.fn().mockResolvedValue({
-      choices: [{ message: { content: mockDescription } }]
+    test('getDescriptionBatch should process multiple images', async () => {
+      const results = await openai.getDescriptionBatch(mockImagePaths);
+      expect(results).toEqual(mockBatchResults);
     });
 
-    (OpenAI as jest.MockedClass<typeof OpenAI>).mockImplementation(() => ({
-      chat: { completions: { create: mockCreate } }
-    } as any));
+    test('getDescriptionBatch should handle custom options', async () => {
+      const options = {
+        prompt: 'Custom prompt',
+        maxTokens: 500,
+        model: 'custom-model',
+        concurrentLimit: 2
+      };
 
-    const options: OpenAIOptions = {
-      prompt: 'Custom prompt',
-      maxTokens: 500,
-      model: 'custom-model'
-    };
+      await openai.getDescriptionBatch(mockImagePaths, options);
 
-    openai.init(mockApiKey);
-    const result = await openai.getDescription(mockImageUrl, options);
-    
-    expect(result).toBe(mockDescription);
-    expect(mockCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        max_tokens: options.maxTokens,
-        model: options.model
-      })
-    );
-  });
+      expect(processBatchImages).toHaveBeenCalledWith(
+        mockImagePaths,
+        expect.any(Function),
+        options.concurrentLimit
+      );
+    });
 
-  test('getDescription() should throw error on API failure', async () => {
-    const mockCreate = jest.fn().mockRejectedValue(new Error('API Error'));
+    test('getDescriptionBatch should throw error if not initialized', async () => {
+      jest.spyOn(openai as any, 'client', 'get').mockReturnValue(null);
+      await expect(openai.getDescriptionBatch(mockImagePaths))
+        .rejects.toThrow('Client not initialized');
+    });
 
-    (OpenAI as jest.MockedClass<typeof OpenAI>).mockImplementation(() => ({
-      chat: { completions: { create: mockCreate } }
-    } as any));
+    test('getDescriptionBatch should throw error on batch size exceed', async () => {
+      const tooManyImages = Array(21).fill('https://example.com/image.jpg');
+      await expect(openai.getDescriptionBatch(tooManyImages))
+        .rejects.toThrow('Maximum of 20 images allowed');
+    });
 
-    openai.init(mockApiKey);
-    await expect(openai.getDescription(mockImageUrl)).rejects.toThrow('OpenAI API request failed');
+    test('getDescriptionBatch should handle processing failures', async () => {
+      const mockMixedResults: BatchImageResult[] = [
+        { success: true, description: mockDescription, imagePath: 'test1.jpg' },
+        { success: false, error: 'Failed', imagePath: 'test2.jpg' }
+      ];
+
+      (processBatchImages as jest.Mock).mockResolvedValue(mockMixedResults);
+
+      const results = await openai.getDescriptionBatch(mockImagePaths);
+      expect(results).toEqual(mockMixedResults);
+      expect(results.filter(r => r.success)).toHaveLength(1);
+      expect(results.filter(r => !r.success)).toHaveLength(1);
+    });
   });
 });

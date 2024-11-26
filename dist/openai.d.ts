@@ -1,8 +1,9 @@
-import { OpenAIOptions } from './types';
+import { OpenAIOptions, OpenAIBatchOptions, BatchImageResult } from './types';
 declare class OpenAIService {
     private client;
     init(apiKey?: string): void;
-    getDescription(imageUrl: string, { prompt, maxTokens, model }?: OpenAIOptions): Promise<string>;
+    getDescription(imagePath: string, { prompt, maxTokens, model }?: OpenAIOptions): Promise<string>;
+    getDescriptionBatch(imagePaths: string[], { prompt, maxTokens, model, concurrentLimit }?: OpenAIBatchOptions): Promise<BatchImageResult[]>;
 }
 export declare const openai: OpenAIService;
 export {};

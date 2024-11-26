@@ -6,11 +6,13 @@
 ![Downloads](https://img.shields.io/npm/dm/jstextfromimage)
 ![Node Version](https://img.shields.io/node/v/jstextfromimage)
 
-A powerful TypeScript/JavaScript library for obtaining detailed descriptions of images using various AI models including OpenAI's GPT-4 Vision, Azure OpenAI, and Anthropic Claude 3.
+A powerful TypeScript/JavaScript library for obtaining detailed descriptions of images using various AI models including OpenAI's GPT-4 Vision, Azure OpenAI, and Anthropic Claude. Supports both local files and URLs, with batch processing capabilities.
 
 ## 🌟 Key Features
 
 - 🤖 **Multiple AI Providers**: Support for OpenAI, Azure OpenAI, and Anthropic Claude
+- 🌐 **Flexible Input**: Support for both URLs and local file paths
+- 📦 **Batch Processing**: Process multiple images (up to 20) concurrently
 - 📝 **TypeScript First**: Built with TypeScript for excellent type safety
 - 🔄 **Async/Await**: Modern Promise-based API
 - 🔑 **Flexible Auth**: Multiple authentication methods including environment variables
@@ -45,24 +47,31 @@ azureOpenai.init({
 });
 
 async function analyzeImage() {
+  // Single image analysis (supports both URLs and local files)
   const imageUrl = 'https://example.com/image.jpg';
+  const localImage = '/path/to/local/image.jpg';
   
   // OpenAI Analysis
   const openAIResult = await openai.getDescription(imageUrl, {
     model: 'gpt-4-vision-preview',
-    maxTokens: 300,
-    temperature: 0.7
+    maxTokens: 300
   });
 
-  // Claude Analysis
-  const claudeResult = await claude.getDescription(imageUrl, {
-    model: 'claude-3-sonnet-20240229',
+  // Batch processing
+  const imagePaths = [
+    'https://example.com/image1.jpg',
+    '/path/to/local/image2.jpg',
+    'https://example.com/image3.jpg'
+  ];
+
+  const batchResults = await openai.getDescriptionBatch(imagePaths, {
+    model: 'gpt-4-vision-preview',
     maxTokens: 300,
-    temperature: 0.7
+    concurrentLimit: 3 // Process 3 images at a time
   });
 
-  console.log('OpenAI:', openAIResult);
-  console.log('Claude:', claudeResult);
+  console.log('Single Image:', openAIResult);
+  console.log('Batch Results:', batchResults);
 }
 ```
 
@@ -71,40 +80,36 @@ async function analyzeImage() {
 ### 🔧 Custom Configuration
 
 ```typescript
-interface AdvancedOptions {
-  // OpenAI specific options
-  openai: {
-    model: string;
-    maxTokens: number;
-    temperature: number;
-    systemPrompt?: string;
-    responseFormat?: 'text' | 'json';
-  };
-  
-  // Claude specific options
-  claude: {
-    model: string;
-    maxTokens: number;
-    temperature: number;
-    topP?: number;
-    topK?: number;
-  };
-  
-  // Azure specific options
-  azure: {
-    deploymentName: string;
-    apiVersion: string;
-    temperature: number;
-    responseFormat?: 'text' | 'json';
-  };
+// Single image options
+interface OpenAIOptions {
+  model?: string;
+  maxTokens?: number;
+  prompt?: string;
 }
 
-const result = await openai.getDescription(imageUrl, {
+interface ClaudeOptions {
+  model?: string;
+  maxTokens?: number;
+  prompt?: string;
+}
+
+interface AzureOpenAIOptions {
+  maxTokens?: number;
+  prompt?: string;
+  systemPrompt?: string;
+}
+
+// Batch processing options
+interface BatchProcessOptions {
+  concurrentLimit?: number; // Default: 3
+}
+
+// Example usage
+const batchResults = await openai.getDescriptionBatch(imagePaths, {
   model: 'gpt-4-vision-preview',
   maxTokens: 500,
-  temperature: 0.7,
-  systemPrompt: 'You are a detail-oriented image analyst.',
-  responseFormat: 'json'
+  prompt: 'Describe this image in detail',
+  concurrentLimit: 5
 });
 ```
 
@@ -121,26 +126,31 @@ AZURE_OPENAI_DEPLOYMENT=your-deployment-name
 ### 🔍 Error Handling
 
 ```typescript
-import { 
-  APIError, 
-  ImageFetchError, 
-  InvalidConfigError 
-} from 'jstextfromimage/errors';
-
 try {
-  const description = await openai.getDescription(imageUrl, options);
+  const description = await openai.getDescription(imagePath);
   console.log(description);
 } catch (error) {
-  if (error instanceof APIError) {
-    console.error('API request failed:', error.message);
-  } else if (error instanceof ImageFetchError) {
-    console.error('Failed to fetch image:', error.message);
-  } else if (error instanceof InvalidConfigError) {
-    console.error('Invalid configuration:', error.message);
-  } else {
-    console.error('Unexpected error:', error);
+  if (error instanceof Error) {
+    console.error('Failed to process image:', error.message);
   }
 }
+
+// Batch processing results
+interface BatchImageResult {
+  success: boolean;
+  description?: string;
+  error?: string;
+  imagePath: string;
+}
+
+const results = await openai.getDescriptionBatch(imagePaths);
+results.forEach(result => {
+  if (result.success) {
+    console.log(`Success for ${result.imagePath}:`, result.description);
+  } else {
+    console.error(`Failed for ${result.imagePath}:`, result.error);
+  }
+});
 ```
 
 ## 📚 API Reference
@@ -148,31 +158,17 @@ try {
 ### OpenAI Service
 
 ```typescript
-interface OpenAIOptions {
-  model?: string;         // Default: 'gpt-4-vision-preview'
-  maxTokens?: number;     // Default: 300
-  temperature?: number;   // Default: 0.7
-  systemPrompt?: string;
-  responseFormat?: 'text' | 'json';
-}
-
 openai.init(apiKey?: string): void
-openai.getDescription(imageUrl: string, options?: OpenAIOptions): Promise<string | object>
+openai.getDescription(imagePath: string, options?: OpenAIOptions): Promise<string>
+openai.getDescriptionBatch(imagePaths: string[], options?: OpenAIOptions & BatchProcessOptions): Promise<BatchImageResult[]>
 ```
 
 ### Claude Service
 
 ```typescript
-interface ClaudeOptions {
-  model?: string;         // Default: 'claude-3-sonnet-20240229'
-  maxTokens?: number;     // Default: 300
-  temperature?: number;   // Default: 0.7
-  topP?: number;
-  topK?: number;
-}
-
 claude.init(apiKey?: string): void
-claude.getDescription(imageUrl: string, options?: ClaudeOptions): Promise<string>
+claude.getDescription(imagePath: string, options?: ClaudeOptions): Promise<string>
+claude.getDescriptionBatch(imagePaths: string[], options?: ClaudeOptions & BatchProcessOptions): Promise<BatchImageResult[]>
 ```
 
 ### Azure OpenAI Service
@@ -182,11 +178,12 @@ interface AzureOpenAIConfig {
   apiKey: string;
   endpoint: string;
   deploymentName: string;
-  apiVersion?: string;    // Default: '2024-02-01-preview'
+  apiVersion?: string;
 }
 
 azureOpenai.init(config: AzureOpenAIConfig): void
-azureOpenai.getDescription(imageUrl: string, options?: OpenAIOptions): Promise<string>
+azureOpenai.getDescription(imagePath: string, options?: AzureOpenAIOptions): Promise<string>
+azureOpenai.getDescriptionBatch(imagePaths: string[], options?: AzureOpenAIOptions & BatchProcessOptions): Promise<BatchImageResult[]>
 ```
 
 ## 🛠️ Development
@@ -201,7 +198,7 @@ npm test
 # Build the project
 npm run build
 
-# Lint the code
+# Run linting
 npm run lint
 ```
 
@@ -219,4 +216,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 💬 Support
 
-For support, please [open an issue](https://github.com/yourusername/jstextfromimage/issues/new) on GitHub.
+For support, please [open an issue](https://github.com/OrenGrinker/jstextfromimage/issues/new) on GitHub.

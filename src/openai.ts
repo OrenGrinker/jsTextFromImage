@@ -1,9 +1,8 @@
 // src/openai.ts
 import OpenAI from 'openai';
-import { getImageData } from './utils';
-import { OpenAIOptions } from './types';
+import { getImageData, processBatchImages } from './utils';
+import { OpenAIOptions, OpenAIBatchOptions, BatchImageResult } from './types';
 import dotenv from 'dotenv';
-
 dotenv.config();
 
 class OpenAIService {
@@ -17,11 +16,11 @@ class OpenAIService {
   }
 
   async getDescription(
-    imageUrl: string,
+    imagePath: string,
     {
       prompt = "What's in this image?",
       maxTokens = 300,
-      model = 'gpt-4o'
+      model = 'gpt-4-vision-preview'
     }: OpenAIOptions = {}
   ): Promise<string> {
     if (!this.client) {
@@ -32,9 +31,9 @@ class OpenAIService {
       throw new Error('Client not initialized. Call init() first.');
     }
 
-    const { encodedImage } = await getImageData(imageUrl);
-
     try {
+      const { encodedImage } = await getImageData(imagePath);
+
       const response = await this.client.chat.completions.create({
         model,
         messages: [
@@ -60,6 +59,26 @@ class OpenAIService {
     } catch (error) {
       throw new Error(`OpenAI API request failed: ${(error as Error).message}`);
     }
+  }
+
+  async getDescriptionBatch(
+    imagePaths: string[],
+    {
+      prompt = "What's in this image?",
+      maxTokens = 300,
+      model = 'gpt-4-vision-preview',
+      concurrentLimit = 3
+    }: OpenAIBatchOptions = {}
+  ): Promise<BatchImageResult[]> {
+    if (!this.client) {
+      this.init();
+    }
+
+    return processBatchImages(
+      imagePaths,
+      (imagePath: string) => this.getDescription(imagePath, { prompt, maxTokens, model }),
+      concurrentLimit
+    );
   }
 }
 

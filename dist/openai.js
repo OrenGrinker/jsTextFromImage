@@ -19,15 +19,15 @@ class OpenAIService {
         }
         this.client = new openai_1.default({ apiKey });
     }
-    async getDescription(imageUrl, { prompt = "What's in this image?", maxTokens = 300, model = 'gpt-4o' } = {}) {
+    async getDescription(imagePath, { prompt = "What's in this image?", maxTokens = 300, model = 'gpt-4-vision-preview' } = {}) {
         if (!this.client) {
             this.init();
         }
         if (!this.client) {
             throw new Error('Client not initialized. Call init() first.');
         }
-        const { encodedImage } = await (0, utils_1.getImageData)(imageUrl);
         try {
+            const { encodedImage } = await (0, utils_1.getImageData)(imagePath);
             const response = await this.client.chat.completions.create({
                 model,
                 messages: [
@@ -52,6 +52,12 @@ class OpenAIService {
         catch (error) {
             throw new Error(`OpenAI API request failed: ${error.message}`);
         }
+    }
+    async getDescriptionBatch(imagePaths, { prompt = "What's in this image?", maxTokens = 300, model = 'gpt-4-vision-preview', concurrentLimit = 3 } = {}) {
+        if (!this.client) {
+            this.init();
+        }
+        return (0, utils_1.processBatchImages)(imagePaths, (imagePath) => this.getDescription(imagePath, { prompt, maxTokens, model }), concurrentLimit);
     }
 }
 exports.openai = new OpenAIService();

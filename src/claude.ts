@@ -1,13 +1,30 @@
-// src/claude.ts
 import { Anthropic } from '@anthropic-ai/sdk';
-import { getImageData } from './utils';
-import { ClaudeOptions } from './types';
+import { getImageData, processBatchImages } from './utils';
+import { ClaudeOptions, ClaudeBatchOptions, BatchImageResult } from './types';
 import dotenv from 'dotenv';
-
 dotenv.config();
+
+type ValidMediaType = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
 class ClaudeService {
   private client: Anthropic | null = null;
+
+  private getValidMediaType(contentType: string): ValidMediaType {
+    const normalizedType = contentType.toLowerCase();
+    switch (normalizedType) {
+      case 'image/jpeg':
+      case 'image/jpg':
+        return 'image/jpeg';
+      case 'image/png':
+        return 'image/png';
+      case 'image/gif':
+        return 'image/gif';
+      case 'image/webp':
+        return 'image/webp';
+      default:
+        return 'image/jpeg'; // Default fallback
+    }
+  }
 
   init(apiKey: string = process.env.ANTHROPIC_API_KEY!): void {
     if (!apiKey) {
@@ -17,7 +34,7 @@ class ClaudeService {
   }
 
   async getDescription(
-    imageUrl: string,
+    imagePath: string,
     {
       prompt = "What's in this image?",
       maxTokens = 300,
@@ -28,30 +45,15 @@ class ClaudeService {
       this.init();
     }
 
-    const { encodedImage, contentType: rawContentType } = await getImageData(imageUrl);
-
-    // Validate and normalize content type
-    let contentType: 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
-    switch (rawContentType.toLowerCase()) {
-      case 'image/jpeg':
-      case 'image/jpg':
-        contentType = 'image/jpeg';
-        break;
-      case 'image/png':
-        contentType = 'image/png';
-        break;
-      case 'image/gif':
-        contentType = 'image/gif';
-        break;
-      case 'image/webp':
-        contentType = 'image/webp';
-        break;
-      default:
-        contentType = 'image/jpeg'; // Default to JPEG if unknown
+    if (!this.client) {
+      throw new Error('Client not initialized. Call init() first.');
     }
 
     try {
-      const response = await this.client!.messages.create({
+      const { encodedImage, contentType } = await getImageData(imagePath);
+      const validMediaType = this.getValidMediaType(contentType);
+
+      const response = await this.client.messages.create({
         model,
         max_tokens: maxTokens,
         messages: [
@@ -62,7 +64,7 @@ class ClaudeService {
                 type: 'image',
                 source: {
                   type: 'base64',
-                  media_type: contentType,
+                  media_type: validMediaType,
                   data: encodedImage
                 }
               },
@@ -75,10 +77,34 @@ class ClaudeService {
         ]
       });
 
+      if (!response.content[0]?.text) {
+        throw new Error('No response content received from Claude');
+      }
+
       return response.content[0].text;
     } catch (error) {
       throw new Error(`Claude API request failed: ${(error as Error).message}`);
     }
+  }
+
+  async getDescriptionBatch(
+    imagePaths: string[],
+    {
+      prompt = "What's in this image?",
+      maxTokens = 300,
+      model = 'claude-3-sonnet-20240229',
+      concurrentLimit = 3
+    }: ClaudeBatchOptions = {}
+  ): Promise<BatchImageResult[]> {
+    if (!this.client) {
+      this.init();
+    }
+
+    return processBatchImages(
+      imagePaths,
+      (imagePath: string) => this.getDescription(imagePath, { prompt, maxTokens, model }),
+      concurrentLimit
+    );
   }
 }
 
