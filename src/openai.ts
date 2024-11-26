@@ -1,14 +1,20 @@
-// src/openai.ts
 import OpenAI from 'openai';
 import { getImageData, processBatchImages } from './utils';
 import { OpenAIOptions, OpenAIBatchOptions, BatchImageResult } from './types';
 import dotenv from 'dotenv';
 dotenv.config();
 
-class OpenAIService {
+export class OpenAIService {
   private client: OpenAI | null = null;
 
-  init(apiKey: string = process.env.OPENAI_API_KEY!): void {
+  constructor() {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (apiKey) {
+      this.init(apiKey);
+    }
+  }
+
+  public init(apiKey: string): void {
     if (!apiKey) {
       throw new Error('OpenAI API key must be provided via apiKey parameter or OPENAI_API_KEY environment variable.');
     }
@@ -20,13 +26,9 @@ class OpenAIService {
     {
       prompt = "What's in this image?",
       maxTokens = 300,
-      model = 'gpt-4-vision-preview'
+      model = 'gpt-4o'
     }: OpenAIOptions = {}
   ): Promise<string> {
-    if (!this.client) {
-      this.init();
-    }
-
     if (!this.client) {
       throw new Error('Client not initialized. Call init() first.');
     }
@@ -66,19 +68,43 @@ class OpenAIService {
     {
       prompt = "What's in this image?",
       maxTokens = 300,
-      model = 'gpt-4-vision-preview',
+      model = 'gpt-4o',
       concurrentLimit = 3
     }: OpenAIBatchOptions = {}
   ): Promise<BatchImageResult[]> {
     if (!this.client) {
-      this.init();
+      throw new Error('Client not initialized. Call init() first.');
     }
 
-    return processBatchImages(
-      imagePaths,
-      (imagePath: string) => this.getDescription(imagePath, { prompt, maxTokens, model }),
-      concurrentLimit
+    if (imagePaths.length > 20) {
+      throw new Error('Maximum of 20 images allowed per batch request');
+    }
+
+    const results = await Promise.all(
+      imagePaths.map(async (imagePath) => {
+        try {
+          const description = await this.getDescription(imagePath, {
+            prompt,
+            maxTokens,
+            model
+          });
+
+          return {
+            success: true,
+            description,
+            imagePath
+          };
+        } catch (error) {
+          return {
+            success: false,
+            error: error instanceof Error ? error.message : String(error),
+            imagePath
+          };
+        }
+      })
     );
+
+    return results;
   }
 }
 
