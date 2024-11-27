@@ -1,10 +1,9 @@
-import { ClaudeOptions, ClaudeBatchOptions, BatchImageResult } from './types';
-declare class ClaudeService {
+import { ClaudeOptions, BatchResult } from './types';
+export declare class ClaudeService {
     private client;
-    private getValidMediaType;
-    init(apiKey?: string): void;
-    getDescription(imagePath: string, { prompt, maxTokens, model }?: ClaudeOptions): Promise<string>;
-    getDescriptionBatch(imagePaths: string[], { prompt, maxTokens, model, concurrentLimit }?: ClaudeBatchOptions): Promise<BatchImageResult[]>;
+    constructor(apiKey?: string);
+    private init;
+    getDescription(imageUrl: string, { prompt, maxTokens, model }?: ClaudeOptions): Promise<string>;
+    getDescriptionBatch(imageUrls: string[], options?: ClaudeOptions): Promise<BatchResult[]>;
 }
 export declare const claude: ClaudeService;
-export {};

@@ -1,6 +1,6 @@
 {
   "name": "jstextfromimage",
-  "version": "1.1.1",
+  "version": "1.1.7",
   "description": "Get descriptions of images from OpenAI, Azure OpenAI and Anthropic Claude models. Supports both URLs and local files with batch processing capabilities.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

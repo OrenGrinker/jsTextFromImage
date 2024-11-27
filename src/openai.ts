@@ -1,28 +1,28 @@
+// src/openai.ts
 import OpenAI from 'openai';
-import { getImageData, processBatchImages } from './utils';
-import { OpenAIOptions, OpenAIBatchOptions, BatchImageResult } from './types';
+import { OpenAIOptions, BatchResult } from './types';
+import { BatchProcessor } from './batch-processor';
 import dotenv from 'dotenv';
 dotenv.config();
 
 export class OpenAIService {
   private client: OpenAI | null = null;
 
-  constructor() {
-    const apiKey = process.env.OPENAI_API_KEY;
+  constructor(apiKey?: string) {
     if (apiKey) {
       this.init(apiKey);
     }
   }
 
-  public init(apiKey: string): void {
+  private init(apiKey: string = process.env.OPENAI_API_KEY!): void {
     if (!apiKey) {
-      throw new Error('OpenAI API key must be provided via apiKey parameter or OPENAI_API_KEY environment variable.');
+      throw new Error('OpenAI API key must be provided via constructor or OPENAI_API_KEY environment variable.');
     }
     this.client = new OpenAI({ apiKey });
   }
 
   async getDescription(
-    imagePath: string,
+    imageUrl: string,
     {
       prompt = "What's in this image?",
       maxTokens = 300,
@@ -30,13 +30,11 @@ export class OpenAIService {
     }: OpenAIOptions = {}
   ): Promise<string> {
     if (!this.client) {
-      throw new Error('Client not initialized. Call init() first.');
+      this.init();
     }
 
     try {
-      const { encodedImage } = await getImageData(imagePath);
-
-      const response = await this.client.chat.completions.create({
+      const response = await this.client!.chat.completions.create({
         model,
         messages: [
           {
@@ -45,7 +43,7 @@ export class OpenAIService {
               { type: 'text', text: prompt },
               {
                 type: 'image_url',
-                image_url: { url: `data:image/png;base64,${encodedImage}` }
+                image_url: { url: imageUrl }
               }
             ]
           }
@@ -64,47 +62,29 @@ export class OpenAIService {
   }
 
   async getDescriptionBatch(
-    imagePaths: string[],
-    {
-      prompt = "What's in this image?",
-      maxTokens = 300,
-      model = 'gpt-4o',
-      concurrentLimit = 3
-    }: OpenAIBatchOptions = {}
-  ): Promise<BatchImageResult[]> {
+    imageUrls: string[],
+    options: OpenAIOptions = {}
+  ): Promise<BatchResult[]> {
     if (!this.client) {
-      throw new Error('Client not initialized. Call init() first.');
+      this.init();
     }
 
-    if (imagePaths.length > 20) {
-      throw new Error('Maximum of 20 images allowed per batch request');
-    }
+    const concurrency = options.concurrency || 3;
+    
+    const processor = async (imageUrl: string): Promise<BatchResult> => {
+      try {
+        const description = await this.getDescription(imageUrl, options);
+        return { imageUrl, description };
+      } catch (error) {
+        return {
+          imageUrl,
+          description: '',
+          error: (error as Error).message
+        };
+      }
+    };
 
-    const results = await Promise.all(
-      imagePaths.map(async (imagePath) => {
-        try {
-          const description = await this.getDescription(imagePath, {
-            prompt,
-            maxTokens,
-            model
-          });
-
-          return {
-            success: true,
-            description,
-            imagePath
-          };
-        } catch (error) {
-          return {
-            success: false,
-            error: error instanceof Error ? error.message : String(error),
-            imagePath
-          };
-        }
-      })
-    );
-
-    return results;
+    return BatchProcessor.processBatch(imageUrls, processor, concurrency);
   }
 }
 

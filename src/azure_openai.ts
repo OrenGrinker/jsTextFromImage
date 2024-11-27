@@ -1,30 +1,38 @@
+// src/azure_openai.ts
 import { AzureOpenAI } from "openai";
-import { getImageData, processBatchImages } from './utils';
-import { AzureOpenAIOptions, AzureOpenAIBatchOptions, BatchImageResult } from './types';
+import type { ChatCompletionCreateParamsNonStreaming } from "openai/resources";
+import { AzureOpenAIOptions, AzureOpenAIConfig, BatchResult } from './types';
+import { BatchProcessor } from './batch-processor';
 import dotenv from 'dotenv';
 dotenv.config();
 
-class AzureOpenAIService {
+export class AzureOpenAIService {
   private client: AzureOpenAI | null = null;
-  private deploymentName: string = '';
 
-  init({
+  constructor(config?: AzureOpenAIConfig) {
+    if (config) {
+      this.init(config);
+    }
+  }
+
+  private init({
     apiKey = process.env.AZURE_OPENAI_API_KEY,
     endpoint = process.env.AZURE_OPENAI_ENDPOINT,
     deploymentName = process.env.AZURE_OPENAI_DEPLOYMENT,
     apiVersion = '2024-07-01-preview'
-  }: {
-    apiKey?: string;
-    endpoint?: string;
-    deploymentName?: string;
-    apiVersion?: string;
-  } = {}): void {
+  }: AzureOpenAIConfig = {}): void {
     if (!apiKey || !endpoint || !deploymentName) {
+      const missingParams = [];
+      if (!apiKey) missingParams.push('apiKey');
+      if (!endpoint) missingParams.push('endpoint');
+      if (!deploymentName) missingParams.push('deploymentName');
+      
       throw new Error(
-        'Azure OpenAI configuration must be provided via parameters or environment variables: AZURE_OPENAI_API_KEY, AZURE_OPENAI_ENDPOINT, AZURE_OPENAI_DEPLOYMENT'
+        `Missing required Azure OpenAI configuration: ${missingParams.join(', ')}. ` +
+        'These must be provided via constructor or environment variables.'
       );
     }
-    this.deploymentName = deploymentName;
+
     this.client = new AzureOpenAI({
       apiKey,
       endpoint,
@@ -34,7 +42,7 @@ class AzureOpenAIService {
   }
 
   async getDescription(
-    imagePath: string,
+    imageUrl: string,
     {
       prompt = "What's in this image?",
       maxTokens = 300,
@@ -42,18 +50,11 @@ class AzureOpenAIService {
     }: AzureOpenAIOptions = {}
   ): Promise<string> {
     if (!this.client) {
-      this.init();
-    }
-
-    if (!this.client) {
-      throw new Error('Client not initialized. Call init() first.');
+      this.init({});
     }
 
     try {
-      const { encodedImage } = await getImageData(imagePath);
-
-      const completion = await this.client.chat.completions.create({
-        model: this.deploymentName,
+      const messages: ChatCompletionCreateParamsNonStreaming = {
         messages: [
           {
             role: "system",
@@ -69,15 +70,18 @@ class AzureOpenAIService {
               {
                 type: "image_url",
                 image_url: {
-                  url: `data:image/png;base64,${encodedImage}`
+                  url: imageUrl
                 }
               }
             ]
           }
         ],
+        model: "",
         max_tokens: maxTokens
-      });
+      };
 
+      const completion = await this.client!.chat.completions.create(messages);
+      
       if (!completion.choices[0]?.message?.content) {
         throw new Error('No response content received from Azure OpenAI');
       }
@@ -89,23 +93,29 @@ class AzureOpenAIService {
   }
 
   async getDescriptionBatch(
-    imagePaths: string[],
-    {
-      prompt = "What's in this image?",
-      maxTokens = 300,
-      systemPrompt = "You are a helpful assistant.",
-      concurrentLimit = 3
-    }: AzureOpenAIBatchOptions = {}
-  ): Promise<BatchImageResult[]> {
+    imageUrls: string[],
+    options: AzureOpenAIOptions = {}
+  ): Promise<BatchResult[]> {
     if (!this.client) {
-      this.init();
+      this.init({});
     }
 
-    return processBatchImages(
-      imagePaths,
-      (imagePath: string) => this.getDescription(imagePath, { prompt, maxTokens, systemPrompt }),
-      concurrentLimit
-    );
+    const concurrency = options.concurrency || 3;
+    
+    const processor = async (imageUrl: string): Promise<BatchResult> => {
+      try {
+        const description = await this.getDescription(imageUrl, options);
+        return { imageUrl, description };
+      } catch (error) {
+        return {
+          imageUrl,
+          description: '',
+          error: (error as Error).message
+        };
+      }
+    };
+
+    return BatchProcessor.processBatch(imageUrls, processor, concurrency);
   }
 }
 

@@ -4,30 +4,29 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.openai = exports.OpenAIService = void 0;
+// src/openai.ts
 const openai_1 = __importDefault(require("openai"));
-const utils_1 = require("./utils");
+const batch_processor_1 = require("./batch-processor");
 const dotenv_1 = __importDefault(require("dotenv"));
 dotenv_1.default.config();
 class OpenAIService {
-    constructor() {
+    constructor(apiKey) {
         this.client = null;
-        const apiKey = process.env.OPENAI_API_KEY;
         if (apiKey) {
             this.init(apiKey);
         }
     }
-    init(apiKey) {
+    init(apiKey = process.env.OPENAI_API_KEY) {
         if (!apiKey) {
-            throw new Error('OpenAI API key must be provided via apiKey parameter or OPENAI_API_KEY environment variable.');
+            throw new Error('OpenAI API key must be provided via constructor or OPENAI_API_KEY environment variable.');
         }
         this.client = new openai_1.default({ apiKey });
     }
-    async getDescription(imagePath, { prompt = "What's in this image?", maxTokens = 300, model = 'gpt-4o' } = {}) {
+    async getDescription(imageUrl, { prompt = "What's in this image?", maxTokens = 300, model = 'gpt-4o' } = {}) {
         if (!this.client) {
-            throw new Error('Client not initialized. Call init() first.');
+            this.init();
         }
         try {
-            const { encodedImage } = await (0, utils_1.getImageData)(imagePath);
             const response = await this.client.chat.completions.create({
                 model,
                 messages: [
@@ -37,7 +36,7 @@ class OpenAIService {
                             { type: 'text', text: prompt },
                             {
                                 type: 'image_url',
-                                image_url: { url: `data:image/png;base64,${encodedImage}` }
+                                image_url: { url: imageUrl }
                             }
                         ]
                     }
@@ -53,35 +52,25 @@ class OpenAIService {
             throw new Error(`OpenAI API request failed: ${error.message}`);
         }
     }
-    async getDescriptionBatch(imagePaths, { prompt = "What's in this image?", maxTokens = 300, model = 'gpt-4o', concurrentLimit = 3 } = {}) {
+    async getDescriptionBatch(imageUrls, options = {}) {
         if (!this.client) {
-            throw new Error('Client not initialized. Call init() first.');
+            this.init();
         }
-        if (imagePaths.length > 20) {
-            throw new Error('Maximum of 20 images allowed per batch request');
-        }
-        const results = await Promise.all(imagePaths.map(async (imagePath) => {
+        const concurrency = options.concurrency || 3;
+        const processor = async (imageUrl) => {
             try {
-                const description = await this.getDescription(imagePath, {
-                    prompt,
-                    maxTokens,
-                    model
-                });
-                return {
-                    success: true,
-                    description,
-                    imagePath
-                };
+                const description = await this.getDescription(imageUrl, options);
+                return { imageUrl, description };
             }
             catch (error) {
                 return {
-                    success: false,
-                    error: error instanceof Error ? error.message : String(error),
-                    imagePath
+                    imageUrl,
+                    description: '',
+                    error: error.message
                 };
             }
-        }));
-        return results;
+        };
+        return batch_processor_1.BatchProcessor.processBatch(imageUrls, processor, concurrency);
     }
 }
 exports.OpenAIService = OpenAIService;

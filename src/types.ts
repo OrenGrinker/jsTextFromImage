@@ -4,9 +4,16 @@ export interface ImageData {
   contentType: string;
 }
 
+export interface BatchResult {
+  imageUrl: string;
+  description: string;
+  error?: string;
+}
+
 export interface BaseOptions {
   prompt?: string;
   maxTokens?: number;
+  concurrency?: number;
 }
 
 export interface OpenAIOptions extends BaseOptions {
@@ -21,17 +28,9 @@ export interface AzureOpenAIOptions extends BaseOptions {
   systemPrompt?: string;
 }
 
-export interface BatchProcessOptions {
-  concurrentLimit?: number;
+export interface AzureOpenAIConfig {
+  apiKey?: string;
+  endpoint?: string;
+  deploymentName?: string;
+  apiVersion?: string;
 }
-
-export interface BatchImageResult {
-  success: boolean;
-  description?: string;
-  error?: string;
-  imagePath: string;
-}
-
-export interface OpenAIBatchOptions extends OpenAIOptions, BatchProcessOptions {}
-export interface ClaudeBatchOptions extends ClaudeOptions, BatchProcessOptions {}
-export interface AzureOpenAIBatchOptions extends AzureOpenAIOptions, BatchProcessOptions {}

@@ -1,10 +1,5 @@
 // src/index.ts
-import * as openai from './openai';
-import * as claude from './claude';
-import * as azureOpenai from './azure_openai';
-
-export {
-  openai,
-  claude,
-  azureOpenai
-};
+export { openai, OpenAIService } from './openai';
+export { claude, ClaudeService } from './claude';
+export { azureOpenai, AzureOpenAIService } from './azure_openai';
+export * from './types';

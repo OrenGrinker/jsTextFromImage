@@ -1,15 +1,9 @@
-import { AzureOpenAIOptions, AzureOpenAIBatchOptions, BatchImageResult } from './types';
-declare class AzureOpenAIService {
+import { AzureOpenAIOptions, AzureOpenAIConfig, BatchResult } from './types';
+export declare class AzureOpenAIService {
     private client;
-    private deploymentName;
-    init({ apiKey, endpoint, deploymentName, apiVersion }?: {
-        apiKey?: string;
-        endpoint?: string;
-        deploymentName?: string;
-        apiVersion?: string;
-    }): void;
-    getDescription(imagePath: string, { prompt, maxTokens, systemPrompt }?: AzureOpenAIOptions): Promise<string>;
-    getDescriptionBatch(imagePaths: string[], { prompt, maxTokens, systemPrompt, concurrentLimit }?: AzureOpenAIBatchOptions): Promise<BatchImageResult[]>;
+    constructor(config?: AzureOpenAIConfig);
+    private init;
+    getDescription(imageUrl: string, { prompt, maxTokens, systemPrompt }?: AzureOpenAIOptions): Promise<string>;
+    getDescriptionBatch(imageUrls: string[], options?: AzureOpenAIOptions): Promise<BatchResult[]>;
 }
 export declare const azureOpenai: AzureOpenAIService;
-export {};
